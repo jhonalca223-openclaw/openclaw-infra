@@ -1,0 +1,16 @@
+# Secrets
+k8s/secrets.yaml
+
+# Sensitive config
+*.key
+*.pem
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

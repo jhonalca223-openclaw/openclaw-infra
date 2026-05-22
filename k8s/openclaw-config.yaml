@@ -1,0 +1,23 @@
+apiVersion: v1
+data:
+  ALLOW_FILESYSTEM: "true"
+  ALLOW_NETWORK: "true"
+  ALLOW_SHELL: "true"
+  DEFAULT_MODEL: gpt-4.1-mini
+  DEFAULT_PROVIDER: openai
+  LOG_LEVEL: info
+  MAX_EXECUTION_TIME: "60"
+  MODEL_PROVIDER: openai
+  NODE_ENV: production
+  PORT: "3000"
+  RUNNER_HOST: runner.openclaw.svc.cluster.local
+  RUNNER_PORT: "22"
+  RUNNER_TYPE: ssh
+  RUNNER_USER: runner
+  SANDBOX_MODE: "true"
+  TZ: America/Santo_Domingo
+kind: ConfigMap
+metadata:
+  annotations:
+  name: openclaw-config
+  namespace: openclaw
