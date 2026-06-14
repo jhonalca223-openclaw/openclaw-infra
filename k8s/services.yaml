@@ -5,7 +5,7 @@ items:
   metadata:
     annotations:
       kubectl.kubernetes.io/last-applied-configuration: |
-        {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"app":"openclaw"},"name":"openclaw","namespace":"openclaw"},"spec":{"ports":[{"name":"gateway","port":18789,"protocol":"TCP","targetPort":18789},{"name":"browser","port":18791,"protocol":"TCP","targetPort":18791},{"name":"app","port":3000,"protocol":"TCP","targetPort":3000}],"selector":{"app":"openclaw"},"type":"ClusterIP"}}
+        {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"app":"openclaw"},"name":"openclaw","namespace":"openclaw"},"spec":{"ports":[{"name":"http-gateway","port":18789,"protocol":"TCP","targetPort":18789},{"name":"http-browser","port":18791,"protocol":"TCP","targetPort":18791},{"name":"http-app","port":3000,"protocol":"TCP","targetPort":3000}],"selector":{"app":"openclaw"},"type":"LoadBalancer"}}
     creationTimestamp: "2026-05-18T20:49:42Z"
     labels:
       app: openclaw
@@ -37,7 +37,7 @@ items:
     selector:
       app: openclaw
     sessionAffinity: None
-    type: ClusterIP
+    type: LoadBalancer
   status:
     loadBalancer: {}
 - apiVersion: v1
