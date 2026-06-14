@@ -4,7 +4,6 @@ kind: Kustomization
 namespace: openclaw
 
 resources:
-  - k8s/namespace.yaml
   - k8s/configmap-openclaw.yaml
   - k8s/deployment-openclaw.yaml
   - k8s/deployment-runner.yaml
@@ -13,7 +12,5 @@ resources:
   - k8s/resourcequota-openclaw.yaml
   - k8s/virtualservice-openclaw.yaml
 
-# NOTA: Los Secrets y runner-kubeconfig se manejan fuera de Git
-# - openclaw-secrets (Opaque, creado manualmente)
-# - openclaw-ssh-keys (Opaque, creado manualmente)
-# - runner-kubeconfig (ConfigMap con certificados sensibles)
+# NOTA: El namespace lo crea ArgoCD via CreateNamespace=true
+# Los Secrets y runner-kubeconfig se manejan fuera de Git
