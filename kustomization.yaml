@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: openclaw
+
+resources:
+  - k8s/namespace.yaml
+  - k8s/configmap-openclaw.yaml
+  - k8s/deployment-openclaw.yaml
+  - k8s/deployment-runner.yaml
+  - k8s/service-openclaw.yaml
+  - k8s/service-runner.yaml
+  - k8s/resourcequota-openclaw.yaml
+  - k8s/virtualservice-openclaw.yaml
+
+# NOTA: Los Secrets y runner-kubeconfig se manejan fuera de Git
+# - openclaw-secrets (Opaque, creado manualmente)
+# - openclaw-ssh-keys (Opaque, creado manualmente)
+# - runner-kubeconfig (ConfigMap con certificados sensibles)

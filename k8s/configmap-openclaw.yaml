@@ -1,4 +1,8 @@
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-config
+  namespace: openclaw
 data:
   ALLOW_FILESYSTEM: "true"
   ALLOW_NETWORK: "true"
@@ -16,8 +20,3 @@ data:
   RUNNER_USER: runner
   SANDBOX_MODE: "true"
   TZ: America/Santo_Domingo
-kind: ConfigMap
-metadata:
-  annotations:
-  name: openclaw-config
-  namespace: openclaw

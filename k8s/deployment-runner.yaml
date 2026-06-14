@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: runner
+  name: runner
+  namespace: openclaw
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: runner
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        app: runner
+    spec:
+      containers:
+      - env:
+        - name: TZ
+          value: America/Santo_Domingo
+        - name: DOCKER_HOST
+          value: unix:///var/run/docker.sock
+        image: silencfox/openclaw:runner
+        imagePullPolicy: Always
+        livenessProbe:
+          initialDelaySeconds: 20
+          periodSeconds: 15
+          tcpSocket:
+            port: 22
+        name: runner
+        ports:
+        - containerPort: 22
+          name: ssh
+          protocol: TCP
+        readinessProbe:
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          tcpSocket:
+            port: 22
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: true
+          privileged: true
+          readOnlyRootFilesystem: false
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: docker-socket
+        - mountPath: /workspace
+          name: runner-workdir
+        - mountPath: /home/runner
+          name: runner-home
+        - mountPath: /home/runner/.ssh
+          name: ssh-keys
+          readOnly: true
+        - mountPath: /opt/openclaw
+          name: openclaw-data
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      nodeName: rasppi516
+      volumes:
+      - hostPath:
+          path: /run/user/1000/docker.sock
+          type: Socket
+        name: docker-socket
+      - hostPath:
+          path: /opt/openclaw/runner-workdir-alpine
+          type: Directory
+        name: runner-workdir
+      - hostPath:
+          path: /opt/openclaw/runner-home-alpine
+          type: Directory
+        name: runner-home
+      - name: ssh-keys
+        secret:
+          defaultMode: 384
+          secretName: openclaw-ssh-keys
+      - hostPath:
+          path: /opt/openclaw
+          type: Directory
+        name: openclaw-data
