@@ -124,12 +124,12 @@ spec:
           name: openclaw-data
         - mountPath: /app/logs
           name: logs
-        #- mountPath: /root/.ssh
-        #  name: ssh-keys
-        #  readOnly: true
-        #- mountPath: /root/.kube
-        #  name: kubeconfig
-        #  readOnly: true
+        - mountPath: /root/.ssh
+          name: ssh-keys
+          readOnly: true
+        - mountPath: /root/.kube
+          name: kubeconfig
+          readOnly: true
         - mountPath: /usr/local/bin/kubectl
           name: kubectl-binary
           readOnly: true
@@ -156,10 +156,10 @@ spec:
           path: /opt/openclaw/logs
           type: DirectoryOrCreate
         name: logs
-      #- name: ssh-keys
-      #  secret:
-      #    defaultMode: 384
-      #    secretName: openclaw-ssh-keys
+      - name: ssh-keys
+        secret:
+          defaultMode: 384
+          secretName: openclaw-ssh-keys
       - configMap:
           defaultMode: 384
           name: runner-kubeconfig

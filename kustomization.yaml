@@ -11,6 +11,7 @@ resources:
   - k8s/service-runner.yaml
   #- k8s/resourcequota-openclaw.yaml
   - k8s/virtualservice-openclaw.yaml
+  - k8s/clusterrolebinding-openclaw.yaml
 
 # NOTA: El namespace lo crea ArgoCD via CreateNamespace=true
 # Los Secrets y runner-kubeconfig se manejan fuera de Git
