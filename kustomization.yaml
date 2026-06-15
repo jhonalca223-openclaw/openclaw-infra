@@ -12,7 +12,7 @@ resources:
   #- k8s/resourcequota-openclaw.yaml
   - k8s/virtualservice-openclaw.yaml
   - k8s/clusterrolebinding-openclaw.yaml
-  - k8s/pdb-openclaw.yaml
+  #- k8s/pdb-openclaw.yaml
   - k8s/hpa-openclaw.yaml
   - k8s/networkpolicy-openclaw.yaml
 
