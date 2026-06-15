@@ -127,9 +127,9 @@ spec:
         - mountPath: /root/.ssh
           name: ssh-keys
           readOnly: true
-        - mountPath: /root/.kube
-          name: kubeconfig
-          readOnly: true
+        #- mountPath: /root/.kube
+        #  name: kubeconfig
+        #  readOnly: true
         - mountPath: /usr/local/bin/kubectl
           name: kubectl-binary
           readOnly: true
