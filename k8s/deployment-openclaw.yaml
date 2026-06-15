@@ -156,10 +156,10 @@ spec:
           path: /opt/openclaw/logs
           type: DirectoryOrCreate
         name: logs
-      - name: ssh-keys
-        secret:
-          defaultMode: 384
-          secretName: openclaw-ssh-keys
+      #- name: ssh-keys
+      #  secret:
+      #    defaultMode: 384
+      #    secretName: openclaw-ssh-keys
       - configMap:
           defaultMode: 384
           name: runner-kubeconfig
