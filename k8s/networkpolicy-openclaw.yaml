@@ -1,0 +1,123 @@
+---
+# Default deny all ingress traffic to openclaw pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: openclaw
+  name: openclaw-default-deny-ingress
+  namespace: openclaw
+spec:
+  podSelector:
+    matchLabels:
+      app: openclaw
+  policyTypes:
+  - Ingress
+  ingress: []
+---
+# Allow ingress from Istio IngressGateway to OpenClaw service ports
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: openclaw
+  name: openclaw-allow-istio-ingress
+  namespace: openclaw
+spec:
+  podSelector:
+    matchLabels:
+      app: openclaw
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: istio-system
+      podSelector:
+        matchLabels:
+          app: istio-ingressgateway
+    ports:
+    - port: 18789
+      protocol: TCP
+    - port: 18791
+      protocol: TCP
+    - port: 3000
+      protocol: TCP
+---
+# Allow ingress from same-namespace pods (runner, cross-pod communication)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: openclaw
+  name: openclaw-allow-internal
+  namespace: openclaw
+spec:
+  podSelector:
+    matchLabels:
+      app: openclaw
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: openclaw
+    ports:
+    - port: 18789
+      protocol: TCP
+    - port: 18791
+      protocol: TCP
+    - port: 3000
+      protocol: TCP
+---
+# Allow egress: DNS, k8s API, and internet (external API calls)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: openclaw
+  name: openclaw-allow-egress
+  namespace: openclaw
+spec:
+  podSelector:
+    matchLabels:
+      app: openclaw
+  policyTypes:
+  - Egress
+  egress:
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+  # k8s API
+  - to:
+    - ipBlock:
+        cidr: 10.43.0.1/32
+    ports:
+    - port: 443
+      protocol: TCP
+  # Internet (external API calls - OpenAI, DeepSeek, etc.)
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+  # Internal cluster access (runner, other services)
+  - to:
+    - ipBlock:
+        cidr: 10.42.0.0/16
+    - ipBlock:
+        cidr: 10.43.0.0/16
