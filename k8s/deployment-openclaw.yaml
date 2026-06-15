@@ -1,5 +1,5 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   labels:
     app: openclaw
@@ -7,14 +7,18 @@ metadata:
   namespace: openclaw
 spec:
   replicas: 2
+
+  revisionHistoryLimit: 3
+
   selector:
     matchLabels:
       app: openclaw
+
   strategy:
-    rollingUpdate:
+    canary:
       maxSurge: 1
       maxUnavailable: 0
-    type: RollingUpdate
+
   template:
     metadata:
       annotations:
@@ -23,148 +27,183 @@ spec:
         app: openclaw
     spec:
       containers:
-      - command:
-        - /bin/sh
-        - -c
-        - |
-          set -e
-          PATCH="/app/dist/plugin-sdk/fetch-runtime.js"
-          if ! grep -q "resolveActiveManagedProxyTlsOptions" "$PATCH" 2>/dev/null; then
-            echo "[startup] Parcheando plugin-sdk/fetch-runtime.js (add missing exports)..."
-            cp "$PATCH" "${PATCH}.bak" 2>/dev/null || true
-            sed -i "6i\import { n as createHttp1EnvHttpProxyAgent, r as createHttp1ProxyAgent, t as createHttp1Agent } from \"../undici-runtime-C_vBg_1o.js\";" "$PATCH"
-            sed -i "8i\function resolveActiveManagedProxyTlsOptions(tlsOptions) { return {}; }" "$PATCH"
-            sed -i "9s|export {|export { createHttp1Agent, createHttp1EnvHttpProxyAgent, createHttp1ProxyAgent, resolveActiveManagedProxyTlsOptions, |" "$PATCH"
-            echo "[startup] Parche completo aplicado (3 cambios)."
-          else
-            echo "[startup] Parche ya presente, saltando."
-          fi
-          echo "[startup] Iniciando OpenClaw gateway..."
-          exec node openclaw.mjs gateway --allow-unconfigured
-        env:
-        - name: GATEWAY_AUTH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: OPENCLAW_GATEWAY_TOKEN
-              name: openclaw-secrets
-              optional: false
-        - name: DEEPSEEK_API_KEY
-          valueFrom:
-            secretKeyRef:
-              key: DEEPSEEK_API_KEY
-              name: openclaw-secrets
-              optional: true
-        - name: OPENAI_API_KEY
-          valueFrom:
-            secretKeyRef:
-              key: OPENAI_API_KEY
-              name: openclaw-secrets
-              optional: true
-        - name: RUNNER_USERNAME
-          valueFrom:
-            secretKeyRef:
-              key: RUNNER_USERNAME
-              name: openclaw-secrets
-              optional: false
-        - name: RUNNER_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              key: RUNNER_PASSWORD
-              name: openclaw-secrets
-              optional: false
-        envFrom:
-        - configMapRef:
-            name: openclaw-config
-        image: ghcr.io/openclaw/openclaw:2026.5.27-arm64
-        imagePullPolicy: IfNotPresent
-        livenessProbe:
-          failureThreshold: 5
-          initialDelaySeconds: 60
-          periodSeconds: 30
-          tcpSocket:
-            port: 18789
-        name: openclaw
-        ports:
-        - containerPort: 18789
-          name: gateway
-          protocol: TCP
-        - containerPort: 18791
-          name: browser
-          protocol: TCP
-        - containerPort: 3000
-          name: app
-          protocol: TCP
-        readinessProbe:
-          failureThreshold: 5
-          initialDelaySeconds: 45
-          periodSeconds: 15
-          tcpSocket:
-            port: 18789
-        resources:
-          limits:
-            cpu: "1"
-            memory: 1Gi
-          requests:
-            cpu: 400m
-            memory: 256Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            add:
-            - DAC_OVERRIDE
-            - CHOWN
-            - FOWNER
-            - SETUID
-            - SETGID
-            drop:
-            - ALL
-          runAsUser: 0
-        volumeMounts:
-        - mountPath: /root/.openclaw
-          name: openclaw-data
-        - mountPath: /app/logs
-          name: logs
-        - mountPath: /root/.ssh
-          name: ssh-keys
-          readOnly: true
-        - mountPath: /root/.kube
-          name: kubeconfig
-          readOnly: true
-        - mountPath: /usr/local/bin/kubectl
-          name: kubectl-binary
-          readOnly: true
+        - name: openclaw
+
+          image: ghcr.io/openclaw/openclaw:2026.5.27-arm64
+          imagePullPolicy: IfNotPresent
+
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              PATCH="/app/dist/plugin-sdk/fetch-runtime.js"
+
+              if ! grep -q "resolveActiveManagedProxyTlsOptions" "$PATCH" 2>/dev/null; then
+                echo "[startup] Parcheando plugin-sdk/fetch-runtime.js (add missing exports)..."
+
+                cp "$PATCH" "${PATCH}.bak" 2>/dev/null || true
+
+                sed -i "6i\import { n as createHttp1EnvHttpProxyAgent, r as createHttp1ProxyAgent, t as createHttp1Agent } from \"../undici-runtime-C_vBg_1o.js\";" "$PATCH"
+
+                sed -i "8i\function resolveActiveManagedProxyTlsOptions(tlsOptions) { return {}; }" "$PATCH"
+
+                sed -i "9s|export {|export { createHttp1Agent, createHttp1EnvHttpProxyAgent, createHttp1ProxyAgent, resolveActiveManagedProxyTlsOptions, |" "$PATCH"
+
+                echo "[startup] Parche completo aplicado (3 cambios)."
+              else
+                echo "[startup] Parche ya presente, saltando."
+              fi
+
+              echo "[startup] Iniciando OpenClaw gateway..."
+              exec node openclaw.mjs gateway --allow-unconfigured
+
+          env:
+            - name: GATEWAY_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: OPENCLAW_GATEWAY_TOKEN
+                  optional: false
+
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: DEEPSEEK_API_KEY
+                  optional: true
+
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: OPENAI_API_KEY
+                  optional: true
+
+            - name: RUNNER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: RUNNER_USERNAME
+                  optional: false
+
+            - name: RUNNER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: RUNNER_PASSWORD
+                  optional: false
+
+          envFrom:
+            - configMapRef:
+                name: openclaw-config
+
+          ports:
+            - name: gateway
+              containerPort: 18789
+              protocol: TCP
+
+            - name: browser
+              containerPort: 18791
+              protocol: TCP
+
+            - name: app
+              containerPort: 3000
+              protocol: TCP
+
+          readinessProbe:
+            tcpSocket:
+              port: 18789
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            failureThreshold: 5
+
+          livenessProbe:
+            tcpSocket:
+              port: 18789
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+
+          resources:
+            requests:
+              cpu: 400m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+                - DAC_OVERRIDE
+                - CHOWN
+                - FOWNER
+                - SETUID
+                - SETGID
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: openclaw-data
+              mountPath: /root/.openclaw
+
+            - name: logs
+              mountPath: /app/logs
+
+            - name: ssh-keys
+              mountPath: /root/.ssh
+              readOnly: true
+
+            - name: kubeconfig
+              mountPath: /root/.kube
+              readOnly: true
+
+            - name: kubectl-binary
+              mountPath: /usr/local/bin/kubectl
+              readOnly: true
+
+      dnsPolicy: None
+
       dnsConfig:
         nameservers:
-        - 10.43.0.10
-        - 1.1.1.1
-        - 8.8.8.8
+          - 10.43.0.10
+          - 1.1.1.1
+          - 8.8.8.8
         options:
-        - name: ndots
-          value: "5"
+          - name: ndots
+            value: "5"
         searches:
-        - openclaw.svc.cluster.local
-        - svc.cluster.local
-        - cluster.local
-      dnsPolicy: None
+          - openclaw.svc.cluster.local
+          - svc.cluster.local
+          - cluster.local
+
       nodeName: rasppi516
+
       volumes:
-      - hostPath:
-          path: /opt/openclaw/openclaw-data
-          type: Directory
-        name: openclaw-data
-      - hostPath:
-          path: /opt/openclaw/logs
-          type: DirectoryOrCreate
-        name: logs
-      - name: ssh-keys
-        secret:
-          defaultMode: 384
-          secretName: openclaw-ssh-keys
-      - configMap:
-          defaultMode: 384
-          name: runner-kubeconfig
-        name: kubeconfig
-      - hostPath:
-          path: /usr/local/bin/kubectl
-          type: File
-        name: kubectl-binary
+        - name: openclaw-data
+          hostPath:
+            path: /opt/openclaw/openclaw-data
+            type: Directory
+
+        - name: logs
+          hostPath:
+            path: /opt/openclaw/logs
+            type: DirectoryOrCreate
+
+        - name: ssh-keys
+          secret:
+            secretName: openclaw-ssh-keys
+            defaultMode: 384
+
+        - name: kubeconfig
+          configMap:
+            name: runner-kubeconfig
+            defaultMode: 384
+
+        - name: kubectl-binary
+          hostPath:
+            path: /usr/local/bin/kubectl
+            type: File
