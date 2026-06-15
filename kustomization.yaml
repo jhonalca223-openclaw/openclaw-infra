@@ -8,7 +8,7 @@ resources:
   - k8s/deployment-openclaw.yaml
   - k8s/deployment-runner.yaml
   - k8s/service-openclaw.yaml
-  - k8s/service-runner.yaml
+  #- k8s/service-runner.yaml
   #- k8s/resourcequota-openclaw.yaml
   - k8s/virtualservice-openclaw.yaml
 
