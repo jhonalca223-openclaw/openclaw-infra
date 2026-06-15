@@ -14,7 +14,7 @@ resources:
   - k8s/clusterrolebinding-openclaw.yaml
   - k8s/pdb-openclaw.yaml
   - k8s/hpa-openclaw.yaml
-  - k8s/networkpolicy-openclaw.yaml
+  #- k8s/networkpolicy-openclaw.yaml
 
 # NOTA: El namespace lo crea ArgoCD via CreateNamespace=true
 # Los Secrets y runner-kubeconfig se manejan fuera de Git
