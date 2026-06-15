@@ -28,8 +28,8 @@ spec:
     spec:
       containers:
         - name: openclaw
-
-          image: ghcr.io/openclaw/openclaw:2026.5.27-arm64
+          #image: ghcr.io/openclaw/openclaw:2026.5.27-arm64
+          image: ghcr.io/openclaw/openclaw:2026.6.6-arm64
           imagePullPolicy: IfNotPresent
 
           command:
