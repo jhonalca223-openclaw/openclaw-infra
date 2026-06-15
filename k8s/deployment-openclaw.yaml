@@ -124,9 +124,9 @@ spec:
           name: openclaw-data
         - mountPath: /app/logs
           name: logs
-        - mountPath: /root/.ssh
-          name: ssh-keys
-          readOnly: true
+        #- mountPath: /root/.ssh
+        #  name: ssh-keys
+        #  readOnly: true
         #- mountPath: /root/.kube
         #  name: kubeconfig
         #  readOnly: true
