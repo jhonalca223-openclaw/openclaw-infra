@@ -22,3 +22,7 @@ spec:
   selector:
     app: openclaw
   type: LoadBalancer
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
