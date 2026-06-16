@@ -5,15 +5,20 @@ on:
     paths:
       - "runner/Dockerfile"
       - "runner/authorized_keys"
-      - "runner/**"
+      - "runner/build-job.yaml"
+      - ".github/workflows/build-runner.yml"
     branches:
       - main
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag de la imagen (default: runner)"
+        description: "Override tag (default: auto from SHA)"
         required: false
-        default: "runner"
+        default: ""
+
+# Necesario para pushear el manifest actualizado al repo
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -36,11 +41,19 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Determine tags
+      - name: Generate image tag
         id: meta
         run: |
-          TAG="${{ github.event.inputs.tag || 'runner' }}"
-          echo "tags=silencfox/openclaw:${TAG},silencfox/openclaw:runner" >> $GITHUB_OUTPUT
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          OVERRIDE="${{ github.event.inputs.tag }}"
+          if [ -n "$OVERRIDE" ]; then
+            SPECIFIC_TAG="$OVERRIDE"
+          else
+            SPECIFIC_TAG="runner-${SHORT_SHA}"
+          fi
+          echo "specific_tag=${SPECIFIC_TAG}" >> $GITHUB_OUTPUT
+          echo "tags=silencfox/openclaw:${SPECIFIC_TAG},silencfox/openclaw:runner" >> $GITHUB_OUTPUT
+          echo "Built tag: ${SPECIFIC_TAG}"
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -52,3 +65,34 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Update GitOps manifest
+        run: |
+          SPECIFIC_TAG="${{ steps.meta.outputs.specific_tag }}"
+          DEPLOY_FILE="runner/k8s/deployment.yaml"
+
+          echo "Updating $DEPLOY_FILE with tag: $SPECIFIC_TAG"
+
+          # Update image tag in the deployment manifest
+          sed -i "s|image: silencfox/openclaw:runner.*|image: silencfox/openclaw:${SPECIFIC_TAG}|" "$DEPLOY_FILE"
+
+          # Show the change
+          grep "image: silencfox/openclaw" "$DEPLOY_FILE"
+
+      - name: Commit and push GitOps update
+        run: |
+          git config user.name "Runner Builder Bot"
+          git config user.email "bot@openclaw.local"
+
+          git add runner/k8s/deployment.yaml
+
+          # Only commit if there are changes
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore(runner): update image tag to ${{ steps.meta.outputs.specific_tag }} [ci skip]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

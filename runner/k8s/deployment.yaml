@@ -22,7 +22,7 @@ spec:
       containers:
         - name: runner
           image: silencfox/openclaw:runner
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 22
               name: ssh
