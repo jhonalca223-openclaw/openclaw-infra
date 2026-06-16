@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: runner
-          image: silencfox/openclaw:runner
+          image: silencfox/openclaw:runner-1b549d2
           imagePullPolicy: IfNotPresent
 
           env:
