@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runner
+  namespace: openclaw
+  labels:
+    app: runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: runner
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        app: runner
+    spec:
+      # Necesita estar en rasppi516 (RPi5) donde están los hostPaths
+      nodeName: rasppi516
+      containers:
+        - name: runner
+          image: silencfox/openclaw:runner
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 22
+              name: ssh
+              protocol: TCP
+          env:
+            - name: TZ
+              value: "America/Santo_Domingo"
+            - name: DOCKER_HOST
+              value: "unix:///var/run/docker.sock"
+          volumeMounts:
+            # Docker socket rootless del host (rasppi516 user kalcala)
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+            - name: runner-workdir
+              mountPath: /workspace
+            - name: runner-home
+              mountPath: /home/runner
+            - name: ssh-keys
+              mountPath: /home/runner/.ssh
+              readOnly: true
+
+            - name: openclaw-data
+              mountPath: /opt/openclaw
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: true
+            privileged: true  # Requerido para acceder al Docker socket del host
+            readOnlyRootFilesystem: false
+          livenessProbe:
+            tcpSocket:
+              port: 22
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: 22
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+      volumes:
+        - name: docker-socket
+          hostPath:
+            # Docker socket rootless de kalcala en rasppi516
+            path: /run/user/1000/docker.sock
+            type: Socket
+        - name: runner-workdir
+          hostPath:
+            path: /opt/openclaw/runner-workdir-alpine
+            type: Directory
+        - name: runner-home
+          hostPath:
+            path: /opt/openclaw/runner-home-alpine
+            type: Directory
+        - name: ssh-keys
+          secret:
+            secretName: openclaw-ssh-keys
+            defaultMode: 0600
+
+        - name: openclaw-data
+          hostPath:
+            path: /opt/openclaw
+            type: Directory

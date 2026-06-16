@@ -1,0 +1,70 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: runner-builder
+  namespace: openclaw
+  annotations:
+    sidecar.istio.io/inject: "false"
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      nodeName: rasppi516
+      containers:
+      - name: docker-builder
+        image: docker:latest
+        env:
+        - name: DOCKER_HOST
+          value: "unix:///var/run/docker.sock"
+        command:
+        - sh
+        - -c
+        - |
+          set -eux
+
+          # El workspace se monta en /build, buscar el Dockerfile
+          DOCKERFILE=""
+          if [ -d /build/repos/openclaw-infra/runner ]; then
+            DOCKERFILE="/build/repos/openclaw-infra/runner"
+          elif [ -d /build/k8s-openclaw/runner ]; then
+            DOCKERFILE="/build/k8s-openclaw/runner"
+          else
+            echo "ERROR: No se encuentra el Dockerfile del runner"
+            exit 1
+          fi
+
+          echo "=== Building runner image from: $DOCKERFILE ==="
+          cd "$DOCKERFILE"
+          docker build -t silencfox/openclaw:runner .
+
+          echo "=== Pushing to DockerHub ==="
+          echo "$DOCKERHUB_TOKEN" | docker login --username silencfox --password-stdin
+          docker push silencfox/openclaw:runner
+
+          echo "=== Done! ==="
+          docker images | grep silencfox/openclaw
+        envFrom:
+          - secretRef:
+              name: dockerhub-credentials
+              optional: true
+        volumeMounts:
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+        - name: build-context
+          mountPath: /build
+        securityContext:
+          privileged: true
+      restartPolicy: Never
+      volumes:
+      - name: docker-socket
+        hostPath:
+          path: /run/user/1000/docker.sock
+          type: Socket
+      - name: build-context
+        hostPath:
+          path: /opt/openclaw/openclaw-data/workspace
+          type: Directory
+  backoffLimit: 1
