@@ -5,7 +5,6 @@ on:
     paths:
       - "runner/Dockerfile"
       - "runner/authorized_keys"
-      - "runner/build-job.yaml"
       - ".github/workflows/build-runner.yml"
     branches:
       - main
@@ -16,7 +15,6 @@ on:
         required: false
         default: ""
 
-# Necesario para pushear el manifest actualizado al repo
 permissions:
   contents: write
 
@@ -53,7 +51,6 @@ jobs:
           fi
           echo "specific_tag=${SPECIFIC_TAG}" >> $GITHUB_OUTPUT
           echo "tags=silencfox/openclaw:${SPECIFIC_TAG},silencfox/openclaw:runner" >> $GITHUB_OUTPUT
-          echo "Built tag: ${SPECIFIC_TAG}"
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -69,14 +66,10 @@ jobs:
       - name: Update GitOps manifest
         run: |
           SPECIFIC_TAG="${{ steps.meta.outputs.specific_tag }}"
-          DEPLOY_FILE="runner/k8s/deployment.yaml"
+          DEPLOY_FILE="k8s/deployment-runner.yaml"
 
           echo "Updating $DEPLOY_FILE with tag: $SPECIFIC_TAG"
-
-          # Update image tag in the deployment manifest
           sed -i "s|image: silencfox/openclaw:runner.*|image: silencfox/openclaw:${SPECIFIC_TAG}|" "$DEPLOY_FILE"
-
-          # Show the change
           grep "image: silencfox/openclaw" "$DEPLOY_FILE"
 
       - name: Commit and push GitOps update
@@ -84,9 +77,8 @@ jobs:
           git config user.name "Runner Builder Bot"
           git config user.email "bot@openclaw.local"
 
-          git add runner/k8s/deployment.yaml
+          git add k8s/deployment-runner.yaml
 
-          # Only commit if there are changes
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
