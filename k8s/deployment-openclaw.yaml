@@ -130,8 +130,8 @@ spec:
               cpu: 400m
               memory: 256Mi
             limits:
-              cpu: "1"
-              memory: 1Gi
+              cpu: "3"
+              memory: 3Gi
 
           securityContext:
             runAsUser: 0
