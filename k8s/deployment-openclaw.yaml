@@ -180,7 +180,7 @@ spec:
           - svc.cluster.local
           - cluster.local
 
-      nodeName: rasppi516
+      nodeSelector: kubernetes.io/hostname: rasppi516
 
       volumes:
         - name: openclaw-data
