@@ -90,7 +90,7 @@ spec:
 
       dnsPolicy: ClusterFirst
 
-      nodeName: rasppi516
+      nodeSelector: kubernetes.io/hostname: rasppi516
 
       volumes:
         - name: docker-socket
