@@ -10,8 +10,8 @@ spec:
     apiVersion: argoproj.io/v1alpha1
     kind: Rollout
     name: openclaw
-  minReplicas: 0
-  maxReplicas: 1
+  minReplicas: 1
+  maxReplicas: 2
   metrics:
   - type: Resource
     resource:
