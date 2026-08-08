@@ -6,7 +6,7 @@ namespace: openclaw
 resources:
   - k8s/configmap-openclaw.yaml
   - k8s/deployment-openclaw.yaml
-  #- k8s/deployment-runner.yaml
+  - k8s/deployment-runner.yaml
   - k8s/service-openclaw.yaml
   - k8s/service-runner.yaml
   #- k8s/resourcequota-openclaw.yaml
