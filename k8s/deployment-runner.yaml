@@ -26,6 +26,8 @@ spec:
       labels:
         app: runner
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: rasppi516
       containers:
         - name: runner
           image: silencfox/openclaw:runner-1b549d2
