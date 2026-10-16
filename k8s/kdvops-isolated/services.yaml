@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: openclaw-kdvops
+  namespace: kdvops-system
+spec:
+  selector:
+    app: openclaw-kdvops
+  ports:
+    - name: gateway
+      port: 18789
+      targetPort: gateway
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kdvops-broker
+  namespace: kdvops-system
+spec:
+  selector:
+    app: kdvops-broker
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

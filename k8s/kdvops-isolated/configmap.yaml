@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-kdvops-config
+  namespace: kdvops-system
+data:
+  openclaw.json: |
+    {
+      "gateway": {
+        "mode": "local",
+        "bind": "lan",
+        "port": 18789,
+        "auth": { "mode": "token" },
+        "http": {
+          "endpoints": {
+            "chatCompletions": { "enabled": true }
+          }
+        }
+      },
+      "models": {
+        "mode": "merge",
+        "providers": {
+          "deepseek": {
+            "baseUrl": "https://api.deepseek.com",
+            "api": "openai-completions",
+            "models": [
+              {
+                "id": "deepseek-chat",
+                "name": "DeepSeek Chat",
+                "input": ["text"],
+                "contextWindow": 131072,
+                "maxTokens": 8192
+              }
+            ]
+          }
+        }
+      },
+      "agents": {
+        "defaults": {
+          "workspace": "/home/node/.openclaw/workspace",
+          "model": { "primary": "deepseek/deepseek-chat", "fallbacks": [] },
+          "memorySearch": { "enabled": false },
+          "sandbox": { "mode": "off" }
+        },
+        "list": [
+          {
+            "id": "kdvops",
+            "name": "KDvops Isolated",
+            "workspace": "/home/node/.openclaw/workspace",
+            "agentDir": "/home/node/.openclaw/agents/kdvops/agent",
+            "model": { "primary": "deepseek/deepseek-chat", "fallbacks": [] },
+            "tools": { "deny": ["*"] }
+          }
+        ]
+      }
+    }
+  AGENTS.md: |
+    # KDvops Isolated Agent
+
+    You are a coding assistant behind a restricted broker. Use only the client-provided
+    list_files, read_file, and write_file functions. Never request credentials or claim
+    that a file changed unless the client tool confirms it. Keep proposed edits small and
+    reviewable. Every tool path must be relative to the client's mounted workspace: use
+    "." for its root and never send absolute paths or paths containing "..". You have no
+    channels, host shell, cluster access, or administrative role.

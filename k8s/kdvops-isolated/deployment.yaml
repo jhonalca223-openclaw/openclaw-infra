@@ -1,0 +1,166 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw-kdvops
+  namespace: kdvops-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openclaw-kdvops
+  template:
+    metadata:
+      labels:
+        app: openclaw-kdvops
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      nodeSelector:
+        kubernetes.io/hostname: rasppi516
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: gateway
+          image: ghcr.io/openclaw/openclaw:2026.6.6-arm64
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              cp /bootstrap/openclaw.json /home/node/.openclaw/openclaw.json
+              mkdir -p /home/node/.openclaw/workspace /home/node/.openclaw/agents/kdvops/agent
+              cp /bootstrap/AGENTS.md /home/node/.openclaw/workspace/AGENTS.md
+              exec node openclaw.mjs gateway --allow-unconfigured
+          env:
+            - name: HOME
+              value: /home/node
+            - name: OPENCLAW_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kdvops-runtime-secrets
+                  key: gateway-token
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kdvops-runtime-secrets
+                  key: deepseek-api-key
+          ports:
+            - name: gateway
+              containerPort: 18789
+          readinessProbe:
+            tcpSocket:
+              port: gateway
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: gateway
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: state
+              mountPath: /home/node/.openclaw
+            - name: bootstrap
+              mountPath: /bootstrap
+              readOnly: true
+      volumes:
+        - name: state
+          emptyDir: {}
+        - name: bootstrap
+          configMap:
+            name: openclaw-kdvops-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kdvops-broker
+  namespace: kdvops-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kdvops-broker
+  template:
+    metadata:
+      labels:
+        app: kdvops-broker
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: broker
+          image: silencfox/kdvops_cl:sha-eedd2ccbbd3f0a1b7fbea67a00cc7b9cea5f2ab7
+          imagePullPolicy: IfNotPresent
+          args: ["broker"]
+          env:
+            - name: KDVOPS_BROKER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kdvops-runtime-secrets
+                  key: broker-token
+            - name: KDVOPS_BROKER_PORT
+              value: "8080"
+            - name: OPENCLAW_UPSTREAM_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kdvops-runtime-secrets
+                  key: gateway-token
+            - name: OPENCLAW_UPSTREAM_URL
+              value: http://openclaw-kdvops.kdvops-system.svc.cluster.local:18789/v1
+            - name: OPENCLAW_UPSTREAM_MODEL
+              value: openclaw/kdvops
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
