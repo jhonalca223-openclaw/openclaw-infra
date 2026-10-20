@@ -23,7 +23,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: webtop
-          image: lscr.io/linuxserver/webtop:ubuntu-kde@sha256:7a859491e0d06e05025558d78f5bd212ccd329e4db0ca7a39a24d80ae25c1a48
+          image: lscr.io/linuxserver/webtop:ubuntu-xfce@sha256:278797c03b62454aaf05cd1fdeb35dbdc822846855020f9e5233f508a89980d9
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
