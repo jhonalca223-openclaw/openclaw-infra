@@ -4,7 +4,7 @@ metadata:
   name: webtop-config
   namespace: webtop
   annotations:
-    longhorn.io/number-of-replicas: "2"
+    longhorn.io/number-of-replicas: "1"
 spec:
   accessModes: [ReadWriteOnce]
   storageClassName: longhorn
