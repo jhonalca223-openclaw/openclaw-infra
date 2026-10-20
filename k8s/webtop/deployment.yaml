@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webtop
+  namespace: webtop
+  labels:
+    app.kubernetes.io/name: webtop
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: webtop
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: webtop
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: webtop
+          image: lscr.io/linuxserver/webtop:ubuntu-kde@sha256:7a859491e0d06e05025558d78f5bd212ccd329e4db0ca7a39a24d80ae25c1a48
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/Santo_Domingo
+            - name: CUSTOM_USER
+              valueFrom:
+                secretKeyRef:
+                  name: webtop-auth
+                  key: username
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: webtop-auth
+                  key: password
+            - name: TITLE
+              value: KDvops Webtop
+          ports:
+            - name: http
+              containerPort: 3000
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "3"
+              memory: 4Gi
+          startupProbe:
+            tcpSocket:
+              port: http
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: webtop-config
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
