@@ -62,7 +62,7 @@ spec:
           startupProbe:
             tcpSocket:
               port: http
-            failureThreshold: 60
+            failureThreshold: 360
             periodSeconds: 5
           readinessProbe:
             tcpSocket:
