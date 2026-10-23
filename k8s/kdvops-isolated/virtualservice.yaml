@@ -1,0 +1,22 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: kdvops-cli
+  namespace: kdvops-system
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: kdvops-cli.kdvops.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+spec:
+  gateways:
+    - istio-system/kdvops-gateway
+  hosts:
+    - kdvops-cli.kdvops.com
+  http:
+    - match:
+        - authority:
+            exact: kdvops-cli.kdvops.com
+      route:
+        - destination:
+            host: kdvops-broker.kdvops-system.svc.cluster.local
+            port:
+              number: 8080

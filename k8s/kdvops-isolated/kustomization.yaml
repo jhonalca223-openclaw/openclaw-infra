@@ -5,4 +5,5 @@ resources:
   - configmap.yaml
   - deployment.yaml
   - services.yaml
+  - virtualservice.yaml
   - networkpolicy.yaml
