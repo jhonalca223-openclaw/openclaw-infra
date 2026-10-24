@@ -27,7 +27,7 @@ spec:
         - name: regcred
       initContainers:
         - name: seed-chatgpt-auth
-          image: ghcr.io/openclaw/openclaw:2026.6.6-arm64
+          image: ghcr.io/openclaw/openclaw:2026.10.7-arm64
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
           args:
@@ -55,7 +55,7 @@ spec:
               readOnly: true
       containers:
         - name: gateway
-          image: ghcr.io/openclaw/openclaw:2026.6.6-arm64
+          image: ghcr.io/openclaw/openclaw:2026.10.7-arm64
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
           args:
