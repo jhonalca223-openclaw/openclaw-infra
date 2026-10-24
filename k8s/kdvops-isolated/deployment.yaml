@@ -41,10 +41,12 @@ spec:
                 cp /bootstrap-auth/auth.json /home/node/.openclaw/agents/kdvops/agent/codex-home/auth.json
                 chmod 600 /home/node/.openclaw/agents/kdvops/agent/codex-home/auth.json
               fi
-              backup_dir=/home/node/.openclaw/agents/kdvops/sessions/legacy-binding-backup
+              backup_dir=/home/node/.openclaw/agents/kdvops/legacy-binding-backup
               mkdir -p "$backup_dir"
               chmod 700 "$backup_dir"
-              for sidecar in /home/node/.openclaw/agents/kdvops/sessions/*.codex-app-server.json; do
+              for sidecar in \
+                /home/node/.openclaw/agents/kdvops/sessions/*.codex-app-server.json \
+                /home/node/.openclaw/agents/kdvops/sessions/legacy-binding-backup/*.codex-app-server.json; do
                 [ -e "$sidecar" ] || continue
                 destination="$backup_dir/$(basename "$sidecar")"
                 destination_base="$destination"
