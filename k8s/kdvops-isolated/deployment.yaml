@@ -33,13 +33,17 @@ spec:
           args:
             - |
               set -eu
-              mkdir -p /home/node/.openclaw/agents/kdvops/agent/codex-home \
+              codex_home=/home/node/.openclaw/agents/kdvops/agent/codex-home
+              mkdir -p "$codex_home" \
                 /home/node/.openclaw/agents/kdvops/sessions \
                 /home/node/.openclaw/workspace
               cp /bootstrap/openclaw.json /home/node/.openclaw/openclaw.json
-              if [ ! -s /home/node/.openclaw/agents/kdvops/agent/codex-home/auth.json ]; then
-                cp /bootstrap-auth/auth.json /home/node/.openclaw/agents/kdvops/agent/codex-home/auth.json
-                chmod 600 /home/node/.openclaw/agents/kdvops/agent/codex-home/auth.json
+              if [ ! -s "$codex_home/auth.imported.json" ]; then
+                cp /bootstrap-auth/auth.json "$codex_home/auth.json"
+                chmod 600 "$codex_home/auth.json"
+                openclaw migrate apply codex --from "$codex_home" --agent kdvops \
+                  --include-secrets --item auth:openai --yes
+                mv "$codex_home/auth.json" "$codex_home/auth.imported.json"
               fi
               backup_dir=/home/node/.openclaw/agents/kdvops/legacy-binding-backup
               mkdir -p "$backup_dir"
