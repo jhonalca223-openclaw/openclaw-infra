@@ -86,7 +86,6 @@ spec:
           args:
             - |
               set -eu
-              cp /bootstrap/openclaw.json /home/node/.openclaw/openclaw.json
               mkdir -p /home/node/.openclaw/workspace /home/node/.openclaw/agents/kdvops/agent
               cp /bootstrap/AGENTS.md /home/node/.openclaw/workspace/AGENTS.md
               exec node openclaw.mjs gateway --allow-unconfigured
