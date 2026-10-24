@@ -33,11 +33,15 @@ spec:
           args:
             - |
               set -eu
-              mkdir -p /agent-state/agent/codex-home /agent-state/sessions
-              if [ ! -s /agent-state/agent/codex-home/auth.json ]; then
-                cp /bootstrap-auth/auth.json /agent-state/agent/codex-home/auth.json
-                chmod 600 /agent-state/agent/codex-home/auth.json
+              mkdir -p /home/node/.openclaw/agents/kdvops/agent/codex-home \
+                /home/node/.openclaw/agents/kdvops/sessions \
+                /home/node/.openclaw/workspace
+              cp /bootstrap/openclaw.json /home/node/.openclaw/openclaw.json
+              if [ ! -s /home/node/.openclaw/agents/kdvops/agent/codex-home/auth.json ]; then
+                cp /bootstrap-auth/auth.json /home/node/.openclaw/agents/kdvops/agent/codex-home/auth.json
+                chmod 600 /home/node/.openclaw/agents/kdvops/agent/codex-home/auth.json
               fi
+              openclaw doctor --fix --non-interactive
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -48,8 +52,13 @@ spec:
             seccompProfile:
               type: RuntimeDefault
           volumeMounts:
+            - name: state
+              mountPath: /home/node/.openclaw
             - name: codex-state
-              mountPath: /agent-state
+              mountPath: /home/node/.openclaw/agents/kdvops
+            - name: bootstrap
+              mountPath: /bootstrap
+              readOnly: true
             - name: chatgpt-auth-bootstrap
               mountPath: /bootstrap-auth
               readOnly: true
