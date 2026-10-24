@@ -38,19 +38,17 @@ data:
             "openai/gpt-6.1-sol": { "agentRuntime": { "id": "codex" } }
           },
           "timeoutSeconds": 300,
-          "memorySearch": { "enabled": false },
           "sandbox": { "mode": "off" }
         },
-        "list": [
-          {
-            "id": "kdvops",
+        "entries": {
+          "kdvops": {
             "name": "KDvops Isolated",
             "workspace": "/home/node/.openclaw/workspace",
             "agentDir": "/home/node/.openclaw/agents/kdvops/agent",
             "model": { "primary": "openai/gpt-6.1-sol", "fallbacks": [] },
             "tools": { "deny": ["*"] }
           }
-        ]
+        }
       }
     }
   AGENTS.md: |
