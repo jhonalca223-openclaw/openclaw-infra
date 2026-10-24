@@ -5,6 +5,8 @@ metadata:
   namespace: kdvops-system
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: openclaw-kdvops
@@ -23,6 +25,34 @@ spec:
         kubernetes.io/hostname: rasppi516
       imagePullSecrets:
         - name: regcred
+      initContainers:
+        - name: seed-chatgpt-auth
+          image: ghcr.io/openclaw/openclaw:2026.6.6-arm64
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              mkdir -p /agent-state/agent/codex-home /agent-state/sessions
+              if [ ! -s /agent-state/agent/codex-home/auth.json ]; then
+                cp /bootstrap-auth/auth.json /agent-state/agent/codex-home/auth.json
+                chmod 600 /agent-state/agent/codex-home/auth.json
+              fi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: codex-state
+              mountPath: /agent-state
+            - name: chatgpt-auth-bootstrap
+              mountPath: /bootstrap-auth
+              readOnly: true
       containers:
         - name: gateway
           image: ghcr.io/openclaw/openclaw:2026.6.6-arm64
@@ -75,6 +105,8 @@ spec:
           volumeMounts:
             - name: state
               mountPath: /home/node/.openclaw
+            - name: codex-state
+              mountPath: /home/node/.openclaw/agents/kdvops
             - name: bootstrap
               mountPath: /bootstrap
               readOnly: true
@@ -84,6 +116,12 @@ spec:
         - name: bootstrap
           configMap:
             name: openclaw-kdvops-config
+        - name: codex-state
+          persistentVolumeClaim:
+            claimName: openclaw-kdvops-codex-auth
+        - name: chatgpt-auth-bootstrap
+          secret:
+            secretName: kdvops-chatgpt-auth-bootstrap
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -118,6 +156,8 @@ spec:
                   key: broker-token
             - name: KDVOPS_BROKER_PORT
               value: "8080"
+            - name: KDVOPS_BROKER_UPSTREAM_TIMEOUT
+              value: "300"
             - name: OPENCLAW_UPSTREAM_TOKEN
               valueFrom:
                 secretKeyRef:
