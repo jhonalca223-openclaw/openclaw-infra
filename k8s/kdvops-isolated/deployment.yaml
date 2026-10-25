@@ -180,7 +180,7 @@ spec:
         - name: regcred
       containers:
         - name: broker
-          image: silencfox/kdvops_cl:sha-eedd2ccbbd3f0a1b7fbea67a00cc7b9cea5f2ab7
+          image: silencfox/kdvops_cl:sha-78fb914352e4846819188759e6949338c7c7f589
           imagePullPolicy: IfNotPresent
           args: ["broker"]
           env:
