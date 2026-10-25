@@ -95,6 +95,8 @@ spec:
           env:
             - name: HOME
               value: /home/node
+            - name: CODEX_HOME
+              value: /home/node/.openclaw/agents/kdvops/agent/codex-home
             - name: OPENCLAW_GATEWAY_TOKEN
               valueFrom:
                 secretKeyRef:

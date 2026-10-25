@@ -19,7 +19,12 @@ data:
       },
       "plugins": {
         "entries": {
-          "codex": { "enabled": true }
+          "codex": {
+            "enabled": true,
+            "config": {
+              "appServer": { "homeScope": "user" }
+            }
+          }
         }
       },
       "models": {
