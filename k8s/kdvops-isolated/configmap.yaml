@@ -51,7 +51,7 @@ data:
             "workspace": "/home/node/.openclaw/workspace",
             "agentDir": "/home/node/.openclaw/agents/kdvops/agent",
             "model": { "primary": "openai/gpt-6.1-sol", "fallbacks": [] },
-            "tools": { "deny": ["*"] }
+            "tools": { "allow": ["list_files", "read_file", "write_file"] }
           }
         }
       }
