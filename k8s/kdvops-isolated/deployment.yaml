@@ -38,12 +38,11 @@ spec:
                 /home/node/.openclaw/agents/kdvops/sessions \
                 /home/node/.openclaw/workspace
               cp /bootstrap/openclaw.json /home/node/.openclaw/openclaw.json
-              if [ ! -s "$codex_home/auth.imported.json" ]; then
+              # Codex keeps its ChatGPT subscription login in CODEX_HOME/auth.json.
+              # Seed it only once so the app-server can persist refreshed OAuth tokens.
+              if [ ! -s "$codex_home/auth.json" ]; then
                 cp /bootstrap-auth/auth.json "$codex_home/auth.json"
                 chmod 600 "$codex_home/auth.json"
-                openclaw migrate apply codex --from "$codex_home" --agent kdvops \
-                  --include-secrets --item auth:openai --yes
-                mv "$codex_home/auth.json" "$codex_home/auth.imported.json"
               fi
               backup_dir=/home/node/.openclaw/agents/kdvops/legacy-binding-backup
               mkdir -p "$backup_dir"
