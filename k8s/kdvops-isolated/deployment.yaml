@@ -60,7 +60,13 @@ spec:
                 done
                 mv "$sidecar" "$destination"
               done
-              openclaw doctor --fix --non-interactive
+              # The bootstrap ConfigMap is already the desired, validated config.
+              # Running doctor here can mistake the fresh EmptyDir copy for a
+              # truncated previous config and abort startup while trying to
+              # restore metadata with fchmod under the restricted securityContext.
+              # Keep the non-mutating schema validation so invalid bootstrap
+              # state still fails the init container before Gateway startup.
+              openclaw config validate
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
