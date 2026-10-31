@@ -7,18 +7,14 @@ metadata:
   namespace: openclaw
 spec:
   replicas: 1
-
   revisionHistoryLimit: 3
-
   selector:
     matchLabels:
       app: openclaw
-
   strategy:
     canary:
       maxSurge: 1
       maxUnavailable: 0
-
   template:
     metadata:
       annotations:
@@ -26,13 +22,37 @@ spec:
       labels:
         app: openclaw
     spec:
+      initContainers:
+        - name: codex-bootstrap
+          image: silencfox/openclaw:runner-1b549d2
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              test -x /usr/bin/codex
+              cp /usr/bin/codex /shared/codex
+              chmod 0555 /shared/codex
+              test -s /codex-data/auth.json
+              echo "[codex-bootstrap] Codex CLI and persisted auth are available."
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: codex-runtime
+              mountPath: /shared
+            - name: codex-data
+              mountPath: /codex-data
+              readOnly: true
+
       containers:
         - name: openclaw
-          #image: ghcr.io/openclaw/openclaw:2026.5.27-arm64
           image: ghcr.io/openclaw/openclaw:2026.7.1-2-arm64
-          #image: ghcr.io/openclaw/openclaw:2026.9.4-arm64
           imagePullPolicy: IfNotPresent
-
           command:
             - /bin/sh
             - -c
@@ -41,22 +61,16 @@ spec:
               PATCH="/app/dist/plugin-sdk/fetch-runtime.js"
 
               if ! grep -q "resolveActiveManagedProxyTlsOptions" "$PATCH" 2>/dev/null; then
-                echo "[startup] Parcheando plugin-sdk/fetch-runtime.js (add missing exports)..."
-
                 cp "$PATCH" "${PATCH}.bak" 2>/dev/null || true
-
                 sed -i "6i\import { n as createHttp1EnvHttpProxyAgent, r as createHttp1ProxyAgent, t as createHttp1Agent } from \"../undici-runtime-C_vBg_1o.js\";" "$PATCH"
-
                 sed -i "8i\function resolveActiveManagedProxyTlsOptions(tlsOptions) { return {}; }" "$PATCH"
-
                 sed -i "9s|export {|export { createHttp1Agent, createHttp1EnvHttpProxyAgent, createHttp1ProxyAgent, resolveActiveManagedProxyTlsOptions, |" "$PATCH"
-
-                echo "[startup] Parche completo aplicado (3 cambios)."
-              else
-                echo "[startup] Parche ya presente, saltando."
               fi
 
-              echo "[startup] Iniciando OpenClaw gateway..."
+              command -v codex >/dev/null 2>&1
+              test -s /root/.codex/auth.json
+              codex --version
+
               exec node openclaw.mjs gateway --allow-unconfigured
 
           env:
@@ -65,7 +79,6 @@ spec:
                 secretKeyRef:
                   name: openclaw-secrets
                   key: OPENCLAW_GATEWAY_TOKEN
-                  optional: false
 
             - name: DEEPSEEK_API_KEY
               valueFrom:
@@ -86,14 +99,15 @@ spec:
                 secretKeyRef:
                   name: openclaw-secrets
                   key: RUNNER_USERNAME
-                  optional: false
 
             - name: RUNNER_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: openclaw-secrets
                   key: RUNNER_PASSWORD
-                  optional: false
+
+            - name: PATH
+              value: /opt/codex-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
           envFrom:
             - configMapRef:
@@ -102,15 +116,10 @@ spec:
           ports:
             - name: gateway
               containerPort: 18789
-              protocol: TCP
-
             - name: browser
               containerPort: 18791
-              protocol: TCP
-
             - name: app
               containerPort: 3000
-              protocol: TCP
 
           readinessProbe:
             tcpSocket:
@@ -148,6 +157,12 @@ spec:
                 - ALL
 
           volumeMounts:
+            - name: codex-runtime
+              mountPath: /opt/codex-bin
+
+            - name: codex-data
+              mountPath: /root/.codex
+
             - name: openclaw-data
               mountPath: /root/.openclaw
 
@@ -181,10 +196,18 @@ spec:
           - svc.cluster.local
           - cluster.local
 
-      nodeSelector: 
+      nodeSelector:
         kubernetes.io/hostname: rasppi516
 
       volumes:
+        - name: codex-runtime
+          emptyDir: {}
+
+        - name: codex-data
+          hostPath:
+            path: /opt/openclaw/codex-data
+            type: Directory
+
         - name: openclaw-data
           hostPath:
             path: /opt/openclaw/openclaw-data
