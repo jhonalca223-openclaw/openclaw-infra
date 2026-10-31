@@ -34,7 +34,7 @@ spec:
               if [ ! -x /root/.codex/packages/standalone/current/bin/codex ]; then
                 echo "[codex-bootstrap] Instalando Codex CLI 0.166.0 en el volumen persistente..."
                 command -v curl >/dev/null 2>&1
-                curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 CODEX_HOME=/root/.codex TAR_OPTIONS=--no-same-owner sh -s -- --release 0.166.0
+                curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 CODEX_HOME=/root/.openclaw/codex-home TAR_OPTIONS=--no-same-owner sh -s -- --release 0.166.0
               fi
               test -x /root/.codex/packages/standalone/current/bin/codex
               cp /root/.codex/packages/standalone/current/bin/codex /shared/codex
