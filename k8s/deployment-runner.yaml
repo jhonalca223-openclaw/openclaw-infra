@@ -87,9 +87,6 @@ spec:
               mountPath: /opt/openclaw
               readOnly: true
 
-            - name: codex-data
-              mountPath: /root/.codex
-
       dnsPolicy: ClusterFirst
 
       #nodeSelector: 
@@ -120,8 +117,3 @@ spec:
           hostPath:
             path: /opt/openclaw
             type: Directory
-
-        - name: codex-data
-          hostPath:
-            path: /opt/openclaw/codex-data
-            type: DirectoryOrCreate

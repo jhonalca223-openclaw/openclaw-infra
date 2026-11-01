@@ -23,23 +23,27 @@ spec:
         app: openclaw
     spec:
       initContainers:
-        - name: codex-bootstrap
+        - name: codex-install
           image: ghcr.io/openclaw/openclaw:2026.7.1-2-arm64
           imagePullPolicy: IfNotPresent
+          env:
+            - name: CODEX_HOME
+              value: /tmp/codex-install
           command:
             - /bin/sh
             - -c
             - |
               set -eu
-              if [ ! -x /root/.codex/packages/standalone/current/bin/codex ]; then
-                echo "[codex-bootstrap] Instalando Codex CLI 0.166.0 en el volumen persistente..."
+              mkdir -p "$CODEX_HOME"
+              if [ ! -x "$CODEX_HOME/packages/standalone/current/bin/codex" ]; then
+                echo "[codex-install] Instalando Codex CLI 0.166.0 en un volumen temporal aislado..."
                 command -v curl >/dev/null 2>&1
-                curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 CODEX_HOME=/root/.openclaw/codex-home TAR_OPTIONS=--no-same-owner sh -s -- --release 0.166.0
+                curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 CODEX_HOME="$CODEX_HOME" TAR_OPTIONS=--no-same-owner sh -s -- --release 0.166.0
               fi
-              test -x /root/.codex/packages/standalone/current/bin/codex
-              cp /root/.codex/packages/standalone/current/bin/codex /shared/codex
+              test -x "$CODEX_HOME/packages/standalone/current/bin/codex"
+              cp "$CODEX_HOME/packages/standalone/current/bin/codex" /shared/codex
               chmod 0555 /shared/codex
-              echo "[codex-bootstrap] Codex CLI is available; authentication can be completed after startup."
+              echo "[codex-install] Codex CLI is available."
           securityContext:
             runAsUser: 0
             allowPrivilegeEscalation: false
@@ -49,8 +53,44 @@ spec:
           volumeMounts:
             - name: codex-runtime
               mountPath: /shared
+            - name: codex-install-home
+              mountPath: /tmp/codex-install
+
+        - name: codex-auth-migrate
+          image: ghcr.io/openclaw/openclaw:2026.7.1-2-arm64
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CODEX_HOME
+              value: /root/.codex
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              mkdir -p "$CODEX_HOME"
+
+              # The installer runs in the previous init container without
+              # access to this legacy credential mount. This container only
+              # performs the one-time, local migration into the PVC.
+              if [ ! -s "$CODEX_HOME/auth.json" ] && [ -s /legacy-codex/auth.json ]; then
+                cp /legacy-codex/auth.json "$CODEX_HOME/auth.json"
+                chmod 0600 "$CODEX_HOME/auth.json"
+                echo "[codex-auth-migrate] Migrated ChatGPT auth to the Codex PVC."
+              fi
+
+              test -s "$CODEX_HOME/auth.json"
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
             - name: codex-data
               mountPath: /root/.codex
+            - name: legacy-codex-data
+              mountPath: /legacy-codex
+              readOnly: true
 
       containers:
         - name: openclaw
@@ -117,6 +157,8 @@ spec:
                   optional: false
             - name: PATH
               value: /opt/codex-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+            - name: CODEX_HOME
+              value: /root/.codex
 
           envFrom:
             - configMapRef:
@@ -209,7 +251,14 @@ spec:
         - name: codex-runtime
           emptyDir: {}
 
+        - name: codex-install-home
+          emptyDir: {}
+
         - name: codex-data
+          persistentVolumeClaim:
+            claimName: openclaw-codex-home
+
+        - name: legacy-codex-data
           hostPath:
             path: /opt/openclaw/codex-data
             type: Directory
