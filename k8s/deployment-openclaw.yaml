@@ -69,6 +69,13 @@ spec:
               set -eu
               mkdir -p "$CODEX_HOME"
 
+              if [ ! -s "$CODEX_HOME/auth.json" ] && [ -s "$CODEX_HOME/.auth-backup/auth.json" ]; then
+                cp "$CODEX_HOME/.auth-backup/auth.json" "$CODEX_HOME/auth.json.tmp"
+                chmod 0600 "$CODEX_HOME/auth.json.tmp"
+                mv -f "$CODEX_HOME/auth.json.tmp" "$CODEX_HOME/auth.json"
+                echo "[codex-auth-migrate] Restored ChatGPT auth from the PVC backup."
+              fi
+
               # The installer runs in the previous init container without
               # access to this legacy credential mount. This container only
               # performs the one-time, local migration into the PVC.
@@ -228,6 +235,76 @@ spec:
             - name: kubectl-binary
               mountPath: /usr/local/bin/kubectl
               readOnly: true
+
+        - name: codex-auth-supervisor
+          image: ghcr.io/openclaw/openclaw:2026.7.1-2-arm64
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CODEX_HOME
+              value: /root/.codex
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              last_state=""
+              backup_dir="$CODEX_HOME/.auth-backup"
+              backup_file="$backup_dir/auth.json"
+              mkdir -p "$backup_dir"
+              chmod 0700 "$backup_dir"
+              while true; do
+                state=""
+                detail=""
+
+                if [ ! -s "$CODEX_HOME/auth.json" ]; then
+                  if [ -s "$backup_file" ]; then
+                    cp "$backup_file" "$CODEX_HOME/auth.json.tmp"
+                    chmod 0600 "$CODEX_HOME/auth.json.tmp"
+                    mv -f "$CODEX_HOME/auth.json.tmp" "$CODEX_HOME/auth.json"
+                    state="AUTH_RESTORED"
+                    detail="auth.json was restored atomically from the PVC backup"
+                  else
+                    state="AUTH_MISSING"
+                    detail="auth.json and its PVC backup are absent"
+                  fi
+                else
+                  login_status="$(/opt/codex-bin/codex login status 2>&1 || true)"
+                  if printf '%s' "$login_status" | grep -q "Logged in"; then
+                    if [ ! -s "$backup_file" ] || ! cmp -s "$CODEX_HOME/auth.json" "$backup_file"; then
+                      cp "$CODEX_HOME/auth.json" "$backup_file.tmp"
+                      chmod 0600 "$backup_file.tmp"
+                      mv -f "$backup_file.tmp" "$backup_file"
+                      state="AUTH_BACKUP_UPDATED"
+                      detail="authenticated auth.json was copied atomically to the PVC backup"
+                    else
+                      state="AUTH_PRESENT"
+                      detail="Codex reports a logged-in ChatGPT profile"
+                    fi
+                  else
+                    state="AUTH_INVALID_OR_UNAVAILABLE"
+                    detail="codex login status did not report an authenticated profile"
+                  fi
+                fi
+
+                if [ "$state" != "$last_state" ]; then
+                  echo "[codex-auth-supervisor] state=$state detail=$detail"
+                  last_state="$state"
+                fi
+
+                sleep 60
+              done
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: codex-runtime
+              mountPath: /opt/codex-bin
+              readOnly: true
+            - name: codex-data
+              mountPath: /root/.codex
 
       dnsPolicy: None
 
