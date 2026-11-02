@@ -344,8 +344,13 @@ spec:
               done
           securityContext:
             runAsUser: 0
+            runAsGroup: 0
             allowPrivilegeEscalation: false
             capabilities:
+              add:
+                - DAC_OVERRIDE
+                - CHOWN
+                - FOWNER
               drop:
                 - ALL
           volumeMounts:
