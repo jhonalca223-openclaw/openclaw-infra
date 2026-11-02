@@ -69,23 +69,48 @@ spec:
               set -eu
               mkdir -p "$CODEX_HOME"
 
-              if [ ! -s "$CODEX_HOME/auth.json" ] && [ -s "$CODEX_HOME/.auth-backup/auth.json" ]; then
-                cp "$CODEX_HOME/.auth-backup/auth.json" "$CODEX_HOME/auth.json.tmp"
-                chmod 0600 "$CODEX_HOME/auth.json.tmp"
-                mv -f "$CODEX_HOME/auth.json.tmp" "$CODEX_HOME/auth.json"
-                echo "[codex-auth-migrate] Restored ChatGPT auth from the PVC backup."
+              # Los candidatos se prueban en orden: backup propio del PVC y,
+              # como ultimo recurso, el auth.json historico que vive dentro de
+              # openclaw-data (hostPath persistente y fuera del PVC efimero).
+              # El directorio legacy puede no existir: por eso no se exige.
+              restore_from() {
+                src="$1"
+                [ -s "$src" ] || return 1
+                tmp="$CODEX_HOME/.auth.json.seed.$$"
+                cp "$src" "$tmp"
+                chmod 0600 "$tmp"
+                mv -f "$tmp" "$CODEX_HOME/auth.json"
+                echo "[codex-auth-migrate] Seeded auth.json from $src"
+                return 0
+              }
+
+              if [ ! -s "$CODEX_HOME/auth.json" ]; then
+                restore_from "$CODEX_HOME/.auth-backup/auth.json" \
+                  || restore_from /legacy-codex/codex-home/auth.json \
+                  || restore_from /legacy-codex/auth.json \
+                  || echo "[codex-auth-migrate] No seed available; waiting for codex-auth-supervisor."
               fi
 
-              # The installer runs in the previous init container without
-              # access to this legacy credential mount. This container only
-              # performs the one-time, local migration into the PVC.
-              if [ ! -s "$CODEX_HOME/auth.json" ] && [ -s /legacy-codex/auth.json ]; then
-                cp /legacy-codex/auth.json "$CODEX_HOME/auth.json"
-                chmod 0600 "$CODEX_HOME/auth.json"
-                echo "[codex-auth-migrate] Migrated ChatGPT auth to the Codex PVC."
+              # Sembrar el backup del propio PVC para que el supervisor tenga
+              # de donde restaurar sin depender del hostPath.
+              if [ -s "$CODEX_HOME/auth.json" ]; then
+                mkdir -p "$CODEX_HOME/.auth-backup"
+                chmod 0700 "$CODEX_HOME/.auth-backup"
+                if [ ! -s "$CODEX_HOME/.auth-backup/auth.json" ] \
+                  || ! cmp -s "$CODEX_HOME/auth.json" "$CODEX_HOME/.auth-backup/auth.json"; then
+                  cp "$CODEX_HOME/auth.json" "$CODEX_HOME/.auth-backup/auth.json.tmp"
+                  chmod 0600 "$CODEX_HOME/.auth-backup/auth.json.tmp"
+                  mv -f "$CODEX_HOME/.auth-backup/auth.json.tmp" "$CODEX_HOME/.auth-backup/auth.json"
+                fi
               fi
 
-              test -s "$CODEX_HOME/auth.json"
+              # No se aborta el arranque: el supervisor repara en caliente.
+              # Solo se informa el estado para diagnostico.
+              if [ -s "$CODEX_HOME/auth.json" ]; then
+                echo "[codex-auth-migrate] auth.json present."
+              else
+                echo "[codex-auth-migrate] WARNING: auth.json absent after seeding." >&2
+              fi
           securityContext:
             runAsUser: 0
             allowPrivilegeEscalation: false
@@ -246,12 +271,24 @@ spec:
             - /bin/sh
             - -c
             - |
-              set -eu
+              set -u
               last_state=""
+              initial="${SUPERVISOR_INITIAL_STATE:-}"
               backup_dir="$CODEX_HOME/.auth-backup"
               backup_file="$backup_dir/auth.json"
+
+              # Estado inicial derivado de la perspectiva del init container.
+              # Evita que un pod en carrera (maxSurge=1) borre el backup bueno
+              # del PVC compartido por otro pod sano.
+              case "$initial" in
+                restored_from_legacy)
+                  last_state="AUTH_SEEDED"
+                  ;;
+              esac
+
               mkdir -p "$backup_dir"
               chmod 0700 "$backup_dir"
+
               while true; do
                 state=""
                 detail=""
@@ -281,8 +318,18 @@ spec:
                       detail="Codex reports a logged-in ChatGPT profile"
                     fi
                   else
-                    state="AUTH_INVALID_OR_UNAVAILABLE"
-                    detail="codex login status did not report an authenticated profile"
+                    # auth.json existe pero no valida: si hay backup bueno,
+                    # se restaura para no dejar el pod sin credencial.
+                    if [ -s "$backup_file" ] && ! cmp -s "$CODEX_HOME/auth.json" "$backup_file"; then
+                      cp "$backup_file" "$CODEX_HOME/auth.json.tmp"
+                      chmod 0600 "$CODEX_HOME/auth.json.tmp"
+                      mv -f "$CODEX_HOME/auth.json.tmp" "$CODEX_HOME/auth.json"
+                      state="AUTH_REPAIRED"
+                      detail="invalid auth.json replaced by the PVC backup"
+                    else
+                      state="AUTH_INVALID_OR_UNAVAILABLE"
+                      detail="codex login status did not report an authenticated profile"
+                    fi
                   fi
                 fi
 
@@ -337,7 +384,7 @@ spec:
 
         - name: legacy-codex-data
           hostPath:
-            path: /opt/openclaw/codex-data
+            path: /opt/openclaw/openclaw-data
             type: Directory
 
         - name: openclaw-data
