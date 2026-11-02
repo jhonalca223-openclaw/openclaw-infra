@@ -61,7 +61,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: CODEX_HOME
-              value: /root/.codex
+              value: /root/.openclaw/codex-home
           command:
             - /bin/sh
             - -c
@@ -86,7 +86,6 @@ spec:
 
               if [ ! -s "$CODEX_HOME/auth.json" ]; then
                 restore_from "$CODEX_HOME/.auth-backup/auth.json" \
-                  || restore_from /legacy-codex/codex-home/auth.json \
                   || restore_from /legacy-codex/auth.json \
                   || echo "[codex-auth-migrate] No seed available; waiting for codex-auth-supervisor."
               fi
@@ -118,8 +117,8 @@ spec:
               drop:
                 - ALL
           volumeMounts:
-            - name: codex-data
-              mountPath: /root/.codex
+            - name: openclaw-data
+              mountPath: /root/.openclaw
             - name: legacy-codex-data
               mountPath: /legacy-codex
               readOnly: true
@@ -190,7 +189,7 @@ spec:
             - name: PATH
               value: /opt/codex-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
             - name: CODEX_HOME
-              value: /root/.codex
+              value: /root/.openclaw/codex-home
 
           envFrom:
             - configMapRef:
@@ -245,8 +244,6 @@ spec:
           volumeMounts:
             - name: codex-runtime
               mountPath: /opt/codex-bin
-            - name: codex-data
-              mountPath: /root/.codex
             - name: openclaw-data
               mountPath: /root/.openclaw
             - name: logs
@@ -266,7 +263,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: CODEX_HOME
-              value: /root/.codex
+              value: /root/.openclaw/codex-home
           command:
             - /bin/sh
             - -c
@@ -350,8 +347,8 @@ spec:
             - name: codex-runtime
               mountPath: /opt/codex-bin
               readOnly: true
-            - name: codex-data
-              mountPath: /root/.codex
+            - name: openclaw-data
+              mountPath: /root/.openclaw
 
       dnsPolicy: None
 
@@ -378,14 +375,10 @@ spec:
         - name: codex-install-home
           emptyDir: {}
 
-        - name: codex-data
-          persistentVolumeClaim:
-            claimName: openclaw-codex-home
-
         - name: legacy-codex-data
           hostPath:
-            path: /opt/openclaw/openclaw-data
-            type: Directory
+            path: /opt/openclaw/openclaw-data/codex-home
+            type: DirectoryOrCreate
 
         - name: openclaw-data
           hostPath:
